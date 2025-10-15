@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, useCallback } from 'react'
+import { createContext, useContext, useEffect, useState, useCallback, useMemo } from 'react'
 import { supabase } from '../lib/supabase'
 import { toast } from 'sonner'
 
@@ -117,7 +117,7 @@ export const AuthProvider = ({ children }) => {
     return () => subscription.unsubscribe()
   }, [fetchProfile])
 
-  const signUp = async (email, password, fullName, role = 'buyer') => {
+  const signUp = useCallback(async (email, password, fullName, role = 'buyer') => {
     try {
       // Create auth user first
       const { data: authData, error: authError } = await supabase.auth.signUp({
@@ -183,9 +183,9 @@ export const AuthProvider = ({ children }) => {
       toast.error(error.message || 'Failed to create account')
       return { data: null, error }
     }
-  }
+  }, [])
 
-  const signIn = async (email, password) => {
+  const signIn = useCallback(async (email, password) => {
     try {
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
@@ -203,9 +203,9 @@ export const AuthProvider = ({ children }) => {
       toast.error(error.message || 'Failed to sign in')
       return { data: null, error }
     }
-  }
+  }, [])
 
-  const signOut = async () => {
+  const signOut = useCallback(async () => {
     try {
       const { error } = await supabase.auth.signOut()
       if (error) throw error
@@ -218,9 +218,9 @@ export const AuthProvider = ({ children }) => {
       console.error('Error signing out:', error)
       toast.error('Failed to sign out')
     }
-  }
+  }, [])
 
-  const updateProfile = async (updates) => {
+  const updateProfile = useCallback(async (updates) => {
     try {
       const { data, error } = await supabase
         .from('users')
@@ -241,25 +241,28 @@ export const AuthProvider = ({ children }) => {
       toast.error('Failed to update profile')
       return { data: null, error }
     }
-  }
+  }, [user])
 
-  const value = {
-    user,
-    profile,
-    loading,
-    signUp,
-    signIn,
-    signOut,
-    updateProfile,
-    isAdmin: profile?.role === 'admin',
-    isSeller: profile?.role === 'seller' || profile?.role === 'admin',
-    isBuyer: profile?.role === 'buyer' || profile?.role === 'admin',
-    role: profile?.role || 'buyer',
-    canManageUsers: profile?.role === 'admin',
-    canManageProducts: profile?.role === 'admin',
-    canViewAnalytics: profile?.role === 'admin',
-    canManageSettings: profile?.role === 'admin',
-  }
+  const value = useMemo(
+    () => ({
+      user,
+      profile,
+      loading,
+      signUp,
+      signIn,
+      signOut,
+      updateProfile,
+      isAdmin: profile?.role === 'admin',
+      isSeller: profile?.role === 'seller' || profile?.role === 'admin',
+      isBuyer: profile?.role === 'buyer' || profile?.role === 'admin',
+      role: profile?.role || 'buyer',
+      canManageUsers: profile?.role === 'admin',
+      canManageProducts: profile?.role === 'admin',
+      canViewAnalytics: profile?.role === 'admin',
+      canManageSettings: profile?.role === 'admin',
+    }),
+    [user, profile, loading, signUp, signIn, signOut, updateProfile]
+  )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }

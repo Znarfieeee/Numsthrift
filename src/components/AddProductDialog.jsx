@@ -32,16 +32,76 @@ export function AddProductDialog({ trigger, onSuccess }) {
   const [categories, setCategories] = useState([])
   const [imageFiles, setImageFiles] = useState([])
   const [imagePreviews, setImagePreviews] = useState([])
-  const [formData, setFormData] = useState({
-    title: '',
-    description: '',
-    price: '',
-    quantity: '1',
-    category_id: '',
-    condition: 'good',
-    brand: '',
-    size: '',
+
+  // Initialize form data from sessionStorage if available
+  const [formData, setFormData] = useState(() => {
+    const saved = sessionStorage.getItem('addProductFormData')
+    if (saved) {
+      try {
+        return JSON.parse(saved)
+      } catch {
+        return {
+          title: '',
+          description: '',
+          price: '',
+          quantity: '1',
+          category_id: '',
+          condition: 'good',
+          brand: '',
+          size: '',
+        }
+      }
+    }
+    return {
+      title: '',
+      description: '',
+      price: '',
+      quantity: '1',
+      category_id: '',
+      condition: 'good',
+      brand: '',
+      size: '',
+    }
   })
+
+  // Restore image previews from sessionStorage on mount
+  useEffect(() => {
+    const savedPreviews = sessionStorage.getItem('addProductImagePreviews')
+    if (savedPreviews) {
+      try {
+        const previews = JSON.parse(savedPreviews)
+        setImagePreviews(previews)
+
+        // Convert base64 previews back to File objects
+        const convertedFiles = []
+        previews.forEach(async (preview, index) => {
+          const blob = await fetch(preview).then((r) => r.blob())
+          const file = new File([blob], `restored-image-${index}.jpg`, { type: blob.type })
+          convertedFiles.push(file)
+
+          if (convertedFiles.length === previews.length) {
+            setImageFiles(convertedFiles)
+          }
+        })
+      } catch {
+        // Ignore errors
+      }
+    }
+  }, [])
+
+  // Save form data to sessionStorage whenever it changes
+  useEffect(() => {
+    if (open) {
+      sessionStorage.setItem('addProductFormData', JSON.stringify(formData))
+    }
+  }, [formData, open])
+
+  // Save image previews to sessionStorage whenever they change
+  useEffect(() => {
+    if (open && imagePreviews.length > 0) {
+      sessionStorage.setItem('addProductImagePreviews', JSON.stringify(imagePreviews))
+    }
+  }, [imagePreviews, open])
 
   // Fetch categories on mount
   useEffect(() => {
@@ -50,10 +110,7 @@ export function AddProductDialog({ trigger, onSuccess }) {
 
   const fetchCategories = async () => {
     try {
-      const { data, error } = await supabase
-        .from('categories')
-        .select('id, name')
-        .order('name')
+      const { data, error } = await supabase.from('categories').select('id, name').order('name')
 
       if (error) throw error
       setCategories(data || [])
@@ -65,13 +122,13 @@ export function AddProductDialog({ trigger, onSuccess }) {
 
   const handleChange = (e) => {
     const { name, value } = e.target
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
-      [name]: value
+      [name]: value,
     }))
   }
 
-  const handleImageSelect = (e) => {
+  const handleImageSelect = async (e) => {
     const files = Array.from(e.target.files)
     if (files.length === 0) return
 
@@ -82,33 +139,50 @@ export function AddProductDialog({ trigger, onSuccess }) {
     }
 
     // Validate file types and sizes
-    const validFiles = files.filter(file => {
+    const validFiles = files.filter((file) => {
       if (!file.type.startsWith('image/')) {
         toast.error(`${file.name} is not an image`)
         return false
       }
-      if (file.size > 5 * 1024 * 1024) { // 5MB limit
+      if (file.size > 5 * 1024 * 1024) {
+        // 5MB limit
         toast.error(`${file.name} exceeds 5MB limit`)
         return false
       }
       return true
     })
 
-    setImageFiles(prev => [...prev, ...validFiles])
-
-    // Create previews
-    validFiles.forEach(file => {
+    // Store files with previews
+    const newPreviews = []
+    for (const file of validFiles) {
       const reader = new FileReader()
-      reader.onloadend = () => {
-        setImagePreviews(prev => [...prev, reader.result])
-      }
-      reader.readAsDataURL(file)
-    })
+      const preview = await new Promise((resolve) => {
+        reader.onloadend = () => resolve(reader.result)
+        reader.readAsDataURL(file)
+      })
+      newPreviews.push(preview)
+    }
+
+    setImageFiles((prev) => [...prev, ...validFiles])
+    setImagePreviews((prev) => [...prev, ...newPreviews])
+
+    // Save to sessionStorage
+    sessionStorage.setItem('addProductImagePreviews', JSON.stringify([...imagePreviews, ...newPreviews]))
   }
 
   const removeImage = (index) => {
-    setImageFiles(prev => prev.filter((_, i) => i !== index))
-    setImagePreviews(prev => prev.filter((_, i) => i !== index))
+    const newImageFiles = imageFiles.filter((_, i) => i !== index)
+    const newImagePreviews = imagePreviews.filter((_, i) => i !== index)
+
+    setImageFiles(newImageFiles)
+    setImagePreviews(newImagePreviews)
+
+    // Update sessionStorage
+    if (newImagePreviews.length > 0) {
+      sessionStorage.setItem('addProductImagePreviews', JSON.stringify(newImagePreviews))
+    } else {
+      sessionStorage.removeItem('addProductImagePreviews')
+    }
   }
 
   const uploadImages = async () => {
@@ -126,22 +200,22 @@ export function AddProductDialog({ trigger, onSuccess }) {
           .from('product-images')
           .upload(fileName, file, {
             cacheControl: '3600',
-            upsert: false
+            upsert: false,
           })
 
         if (error) throw error
 
         // Get public URL
-        const { data: { publicUrl } } = supabase.storage
-          .from('product-images')
-          .getPublicUrl(fileName)
+        const {
+          data: { publicUrl },
+        } = supabase.storage.from('product-images').getPublicUrl(fileName)
 
         uploadedUrls.push(publicUrl)
       }
 
       return {
         mainImage: uploadedUrls[0],
-        additionalImages: uploadedUrls.slice(1)
+        additionalImages: uploadedUrls.slice(1),
       }
     } catch (error) {
       console.error('Error uploading images:', error)
@@ -164,6 +238,10 @@ export function AddProductDialog({ trigger, onSuccess }) {
     })
     setImageFiles([])
     setImagePreviews([])
+
+    // Clear sessionStorage
+    sessionStorage.removeItem('addProductFormData')
+    sessionStorage.removeItem('addProductImagePreviews')
   }
 
   const handleSubmit = async (e) => {
@@ -187,22 +265,20 @@ export function AddProductDialog({ trigger, onSuccess }) {
       const { mainImage, additionalImages } = await uploadImages()
 
       // Insert product
-      const { error } = await supabase
-        .from('products')
-        .insert({
-          title: formData.title,
-          description: formData.description,
-          price: parseFloat(formData.price),
-          quantity: parseInt(formData.quantity),
-          category_id: formData.category_id || null,
-          condition: formData.condition,
-          brand: formData.brand || null,
-          size: formData.size || null,
-          image_url: mainImage,
-          additional_images: additionalImages.length > 0 ? additionalImages : null,
-          seller_id: user.id,
-          status: 'available'
-        })
+      const { error } = await supabase.from('products').insert({
+        title: formData.title,
+        description: formData.description,
+        price: parseFloat(formData.price),
+        quantity: parseInt(formData.quantity),
+        category_id: formData.category_id || null,
+        condition: formData.condition,
+        brand: formData.brand || null,
+        size: formData.size || null,
+        image_url: mainImage,
+        additional_images: additionalImages.length > 0 ? additionalImages : null,
+        seller_id: user.id,
+        status: 'available',
+      })
 
       if (error) throw error
 
@@ -223,73 +299,104 @@ export function AddProductDialog({ trigger, onSuccess }) {
       <DialogTrigger asChild>
         {trigger || (
           <Button className="bg-primary hover:bg-primary/90">
-            <Plus className="h-4 w-4 mr-2" />
+            <Plus className="mr-2 h-4 w-4" />
             Add Product
           </Button>
         )}
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
+      <DialogContent
+        className="max-h-[90vh] overflow-y-auto sm:max-w-[650px]"
+        onInteractOutside={(e) => {
+          if (loading || uploading) {
+            e.preventDefault()
+          }
+        }}
+        onEscapeKeyDown={(e) => {
+          if (loading || uploading) {
+            e.preventDefault()
+          }
+        }}
+      >
         <DialogHeader>
           <DialogTitle>Add New Product</DialogTitle>
           <DialogDescription>
             Fill in the details below to add a new product to your store.
           </DialogDescription>
         </DialogHeader>
-        <form onSubmit={handleSubmit}>
-          <div className="grid gap-4 py-4">
-            {/* Image Upload Section */}
-            <div className="grid gap-2">
-              <Label>Product Images * (Max 5 images)</Label>
-              <div className="border-2 border-dashed rounded-lg p-4">
-                <input
-                  type="file"
-                  id="image-upload"
-                  accept="image/*"
-                  multiple
-                  onChange={handleImageSelect}
-                  className="hidden"
-                />
-                <label
-                  htmlFor="image-upload"
-                  className="flex flex-col items-center justify-center cursor-pointer"
-                >
-                  <Upload className="h-8 w-8 text-gray-400 mb-2" />
-                  <span className="text-sm text-gray-600">
-                    Click to upload images (Max 5MB each)
-                  </span>
-                </label>
-
-                {/* Image Previews */}
-                {imagePreviews.length > 0 && (
-                  <div className="grid grid-cols-3 gap-2 mt-4">
-                    {imagePreviews.map((preview, index) => (
-                      <div key={index} className="relative group">
-                        <img
-                          src={preview}
-                          alt={`Preview ${index + 1}`}
-                          className="w-full h-24 object-cover rounded"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => removeImage(index)}
-                          className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
-                        >
-                          <X className="h-3 w-3" />
-                        </button>
-                        {index === 0 && (
-                          <span className="absolute bottom-1 left-1 bg-primary text-white text-xs px-2 py-0.5 rounded">
-                            Main
-                          </span>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
+        <form onSubmit={handleSubmit} className="space-y-6 overflow-y-auto">
+          {/* Image Upload Section */}
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <Label className="text-base font-semibold">Product Images *</Label>
+              <span className="text-muted-foreground text-xs">Max 5 images, 5MB each</span>
             </div>
 
+            {/* Upload Button */}
+            <div className="flex gap-2">
+              <input
+                type="file"
+                id="image-upload"
+                accept="image/*"
+                multiple
+                onChange={handleImageSelect}
+                className="hidden"
+              />
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => document.getElementById('image-upload').click()}
+                className="w-full"
+                disabled={imageFiles.length >= 5}
+              >
+                <Upload className="mr-2 h-4 w-4" />
+                {imageFiles.length === 0 ? 'Upload Images' : `Add More (${imageFiles.length}/5)`}
+              </Button>
+            </div>
+
+            {/* Image Previews */}
+            {imagePreviews.length > 0 && (
+              <div className="mt-2 grid grid-cols-3 gap-3">
+                {imagePreviews.map((preview, index) => (
+                  <div key={index} className="group relative aspect-square">
+                    <img
+                      src={preview}
+                      alt={`Preview ${index + 1}`}
+                      className="h-full w-full rounded-lg border-2 border-gray-200 object-cover"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => removeImage(index)}
+                      className="absolute -top-2 -right-2 rounded-full bg-red-500 p-1.5 text-white opacity-100 shadow-lg transition-colors hover:bg-red-600"
+                      title="Remove image"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                    {index === 0 && (
+                      <div className="absolute right-0 bottom-0 left-0 rounded-b-lg bg-gradient-to-t from-black/70 to-transparent p-2">
+                        <span className="text-xs font-semibold text-white">Main Image</span>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Helper text */}
+            {imageFiles.length === 0 && (
+              <p className="text-muted-foreground text-xs">
+                First image will be the main product image. Supported formats: JPG, PNG, WEBP
+              </p>
+            )}
+          </div>
+
+          <div className="border-t pt-6"></div>
+
+          {/* Basic Information */}
+          <div className="space-y-4">
+            <Label className="text-base font-semibold">Basic Information</Label>
+
             {/* Title */}
-            <div className="grid gap-2">
+            <div className="space-y-2">
               <Label htmlFor="title">Product Title *</Label>
               <Input
                 id="title"
@@ -302,7 +409,7 @@ export function AddProductDialog({ trigger, onSuccess }) {
             </div>
 
             {/* Description */}
-            <div className="grid gap-2">
+            <div className="space-y-2">
               <Label htmlFor="description">Description *</Label>
               <Textarea
                 id="description"
@@ -317,7 +424,7 @@ export function AddProductDialog({ trigger, onSuccess }) {
 
             {/* Price and Quantity */}
             <div className="grid grid-cols-2 gap-4">
-              <div className="grid gap-2">
+              <div className="space-y-2">
                 <Label htmlFor="price">Price (₱) *</Label>
                 <Input
                   id="price"
@@ -332,7 +439,7 @@ export function AddProductDialog({ trigger, onSuccess }) {
                 />
               </div>
 
-              <div className="grid gap-2">
+              <div className="space-y-2">
                 <Label htmlFor="quantity">Quantity *</Label>
                 <Input
                   id="quantity"
@@ -346,15 +453,22 @@ export function AddProductDialog({ trigger, onSuccess }) {
                 />
               </div>
             </div>
+          </div>
+
+          <div className="border-t pt-6"></div>
+
+          {/* Product Details */}
+          <div className="space-y-4">
+            <Label className="text-base font-semibold">Product Details</Label>
 
             {/* Category and Condition */}
             <div className="grid grid-cols-2 gap-4">
-              <div className="grid gap-2">
+              <div className="space-y-2">
                 <Label htmlFor="category_id">Category</Label>
                 <Select
                   value={formData.category_id}
                   onValueChange={(value) =>
-                    setFormData(prev => ({ ...prev, category_id: value }))
+                    setFormData((prev) => ({ ...prev, category_id: value }))
                   }
                 >
                   <SelectTrigger>
@@ -370,13 +484,11 @@ export function AddProductDialog({ trigger, onSuccess }) {
                 </Select>
               </div>
 
-              <div className="grid gap-2">
+              <div className="space-y-2">
                 <Label htmlFor="condition">Condition *</Label>
                 <Select
                   value={formData.condition}
-                  onValueChange={(value) =>
-                    setFormData(prev => ({ ...prev, condition: value }))
-                  }
+                  onValueChange={(value) => setFormData((prev) => ({ ...prev, condition: value }))}
                 >
                   <SelectTrigger>
                     <SelectValue />
@@ -394,7 +506,7 @@ export function AddProductDialog({ trigger, onSuccess }) {
 
             {/* Brand and Size */}
             <div className="grid grid-cols-2 gap-4">
-              <div className="grid gap-2">
+              <div className="space-y-2">
                 <Label htmlFor="brand">Brand</Label>
                 <Input
                   id="brand"
@@ -405,7 +517,7 @@ export function AddProductDialog({ trigger, onSuccess }) {
                 />
               </div>
 
-              <div className="grid gap-2">
+              <div className="space-y-2">
                 <Label htmlFor="size">Size</Label>
                 <Input
                   id="size"
@@ -417,7 +529,8 @@ export function AddProductDialog({ trigger, onSuccess }) {
               </div>
             </div>
           </div>
-          <DialogFooter>
+
+          <DialogFooter className="border-t pt-6">
             <Button
               type="button"
               variant="outline"
