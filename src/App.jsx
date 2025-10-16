@@ -7,6 +7,7 @@ import { Login } from './pages/Login'
 import { Signup } from './pages/Signup'
 import { Shop } from './pages/Shop'
 import { Cart } from './pages/Cart'
+import { Checkout } from './pages/Checkout'
 import { SellerDashboard } from './pages/SellerDashboard'
 import { AdminDashboard } from './pages/AdminDashboard'
 import { MyStore } from './pages/MyStore'
@@ -53,6 +54,14 @@ const router = createBrowserRouter([
         element: (
           <ProtectedRoute>
             <Cart />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: 'checkout',
+        element: (
+          <ProtectedRoute>
+            <Checkout />
           </ProtectedRoute>
         ),
       },

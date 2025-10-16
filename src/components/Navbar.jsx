@@ -1,5 +1,7 @@
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
+import { useState, useEffect } from 'react'
+import { supabase } from '../lib/supabase'
 import {
   ShoppingCart,
   User,
@@ -25,6 +27,59 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 export const Navbar = () => {
   const { user, profile, signOut, loading } = useAuth()
   const navigate = useNavigate()
+  const [cartItemCount, setCartItemCount] = useState(0)
+
+  useEffect(() => {
+    if (user) {
+      fetchCartItemCount()
+
+      // Set up real-time subscription for cart changes
+      const channel = supabase
+        .channel(`cart-changes-${user.id}`)
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'cart_items',
+            filter: `user_id=eq.${user.id}`
+          },
+          (payload) => {
+            console.log('Cart changed:', payload)
+            // Fetch immediately when change detected
+            fetchCartItemCount()
+          }
+        )
+        .subscribe((status) => {
+          console.log('Subscription status:', status)
+        })
+
+      // Poll every 3 seconds as backup
+      const pollInterval = setInterval(() => {
+        fetchCartItemCount()
+      }, 3000)
+
+      return () => {
+        supabase.removeChannel(channel)
+        clearInterval(pollInterval)
+      }
+    } else {
+      setCartItemCount(0)
+    }
+  }, [user])
+
+  const fetchCartItemCount = async () => {
+    if (!user) return
+
+    const { count, error } = await supabase
+      .from('cart_items')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', user.id)
+
+    if (!error) {
+      setCartItemCount(count || 0)
+    }
+  }
 
   const handleSignOut = async () => {
     await signOut()
@@ -95,6 +150,14 @@ export const Navbar = () => {
                   className="hover:text-primary relative p-2 text-gray-600 transition-colors"
                 >
                   <ShoppingCart className="h-6 w-6" />
+                  {cartItemCount > 0 && (
+                    <span
+                      className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full text-xs font-bold text-white"
+                      style={{ backgroundColor: 'var(--primary)' }}
+                    >
+                      {cartItemCount > 9 ? '9+' : cartItemCount}
+                    </span>
+                  )}
                 </Link>
 
                 <DropdownMenu>

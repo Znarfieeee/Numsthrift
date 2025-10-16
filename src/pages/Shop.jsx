@@ -1,8 +1,17 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
-import { Search, Filter, ShoppingCart } from 'lucide-react'
+import { Search, Filter, ShoppingCart, ShoppingBag } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { ProductGridSkeleton } from '@/components/ui/product-skeleton'
+import { toast } from 'sonner'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import { Button } from '@/components/ui/button'
 
 export const Shop = () => {
   const [products, setProducts] = useState([])
@@ -11,6 +20,10 @@ export const Shop = () => {
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedCategory, setSelectedCategory] = useState('')
   const [priceRange, setPriceRange] = useState('all')
+  const [selectedProduct, setSelectedProduct] = useState(null)
+  const [selectedSize, setSelectedSize] = useState('')
+  const [showSizeDialog, setShowSizeDialog] = useState(false)
+  const [actionType, setActionType] = useState('') // 'add' or 'buy'
   const { user } = useAuth()
 
   useEffect(() => {
@@ -30,10 +43,7 @@ export const Shop = () => {
   }, [searchTerm])
 
   const fetchCategories = async () => {
-    const { data } = await supabase
-      .from('categories')
-      .select('*')
-      .order('name')
+    const { data } = await supabase.from('categories').select('*').order('name')
 
     if (data) setCategories(data)
   }
@@ -42,11 +52,13 @@ export const Shop = () => {
     setLoading(true)
     let query = supabase
       .from('products')
-      .select(`
+      .select(
+        `
         *,
         users:seller_id (full_name),
         categories (name)
-      `)
+      `
+      )
       .eq('status', 'available')
       .order('created_at', { ascending: false })
 
@@ -64,13 +76,13 @@ export const Shop = () => {
       // Apply price filter
       if (priceRange !== 'all') {
         if (priceRange === 'under25') {
-          filtered = filtered.filter(p => parseFloat(p.price) < 25)
+          filtered = filtered.filter((p) => parseFloat(p.price) < 25)
         } else if (priceRange === '25to50') {
-          filtered = filtered.filter(p => parseFloat(p.price) >= 25 && parseFloat(p.price) <= 50)
+          filtered = filtered.filter((p) => parseFloat(p.price) >= 25 && parseFloat(p.price) <= 50)
         } else if (priceRange === '50to100') {
-          filtered = filtered.filter(p => parseFloat(p.price) > 50 && parseFloat(p.price) <= 100)
+          filtered = filtered.filter((p) => parseFloat(p.price) > 50 && parseFloat(p.price) <= 100)
         } else if (priceRange === 'over100') {
-          filtered = filtered.filter(p => parseFloat(p.price) > 100)
+          filtered = filtered.filter((p) => parseFloat(p.price) > 100)
         }
       }
 
@@ -79,43 +91,88 @@ export const Shop = () => {
     setLoading(false)
   }
 
-  const addToCart = async (productId) => {
+  const handleProductAction = (product, action) => {
     if (!user) {
-      alert('Please sign in to add items to cart')
+      toast.error('Please sign in first')
+      return
+    }
+    setSelectedProduct(product)
+    setActionType(action)
+    setSelectedSize('')
+    setShowSizeDialog(true)
+  }
+
+  const handleSizeConfirm = async () => {
+    if (!selectedSize) {
+      toast.error('Please select a size')
       return
     }
 
+    if (actionType === 'add') {
+      await addToCart(selectedProduct.id, selectedSize)
+    } else if (actionType === 'buy') {
+      await buyNow(selectedProduct.id, selectedSize)
+    }
+
+    setShowSizeDialog(false)
+    setSelectedProduct(null)
+    setSelectedSize('')
+  }
+
+  const addToCart = async (productId, size) => {
     try {
       const { data, error } = await supabase
         .from('cart_items')
-        .insert([
-          { user_id: user.id, product_id: productId, quantity: 1 }
-        ])
+        .insert([{ user_id: user.id, product_id: productId, quantity: 1, size: size }])
         .select()
 
       if (error) {
         if (error.code === '23505') {
-          alert('Item already in cart')
+          toast.info('Item already in cart')
         } else {
           throw error
         }
       } else {
-        alert('Added to cart!')
+        toast.success('Added to cart!')
       }
     } catch (error) {
       console.error('Error adding to cart:', error)
-      alert('Failed to add to cart')
+      toast.error('Failed to add to cart')
     }
   }
 
-  const filteredProducts = products.filter(product =>
-    product.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    product.description?.toLowerCase().includes(searchTerm.toLowerCase())
+  const buyNow = async (productId, size) => {
+    try {
+      // Add to cart first
+      const { data, error } = await supabase
+        .from('cart_items')
+        .insert([{ user_id: user.id, product_id: productId, quantity: 1, size: size }])
+        .select()
+
+      if (error && error.code !== '23505') {
+        throw error
+      }
+
+      toast.success('Redirecting to cart...')
+      // Redirect to cart after a brief delay
+      setTimeout(() => {
+        window.location.href = '/cart'
+      }, 500)
+    } catch (error) {
+      console.error('Error processing order:', error)
+      toast.error('Failed to process order')
+    }
+  }
+
+  const filteredProducts = products.filter(
+    (product) =>
+      product.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      product.description?.toLowerCase().includes(searchTerm.toLowerCase())
   )
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900">Shop All Items</h1>
@@ -124,16 +181,16 @@ export const Shop = () => {
 
         {/* Search and Filters */}
         <div className="mb-6 space-y-4">
-          <div className="flex flex-col sm:flex-row gap-4">
+          <div className="flex flex-col gap-4 sm:flex-row">
             {/* Search */}
-            <div className="flex-1 relative">
-              <Search className="absolute left-3 top-3 h-5 w-5 text-gray-400" />
+            <div className="relative flex-1">
+              <Search className="absolute top-3 left-3 h-5 w-5 text-gray-400" />
               <input
                 type="text"
                 placeholder="Search products..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                className="w-full rounded-md border border-gray-300 py-2 pr-4 pl-10 focus:border-blue-500 focus:ring-blue-500"
               />
             </div>
 
@@ -141,7 +198,7 @@ export const Shop = () => {
             <select
               value={selectedCategory}
               onChange={(e) => setSelectedCategory(e.target.value)}
-              className="px-4 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+              className="rounded-md border border-gray-300 px-4 py-2 focus:border-blue-500 focus:ring-blue-500"
             >
               <option value="">All Categories</option>
               {categories.map((category) => (
@@ -152,7 +209,7 @@ export const Shop = () => {
             </select>
 
             {/* Price Range Filter */}
-            <select
+            {/* <select
               value={priceRange}
               onChange={(e) => setPriceRange(e.target.value)}
               className="px-4 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
@@ -162,7 +219,7 @@ export const Shop = () => {
               <option value="25to50">$25 - $50</option>
               <option value="50to100">$50 - $100</option>
               <option value="over100">Over $100</option>
-            </select>
+            </select> */}
           </div>
         </div>
 
@@ -170,17 +227,18 @@ export const Shop = () => {
         {loading ? (
           <ProductGridSkeleton />
         ) : filteredProducts.length === 0 ? (
-          <div className="text-center py-12">
-            <p className="text-gray-500 text-lg">No products found</p>
+          <div className="py-12 text-center">
+            <p className="text-lg text-gray-500">No products found</p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {filteredProducts.map((product) => (
               <div
                 key={product.id}
-                className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow duration-300"
+                className="overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-md"
+                style={{ maxWidth: '320px', margin: '0 auto' }}
               >
-                <div className="h-48 bg-gray-200 flex items-center justify-center">
+                <div className="flex h-56 items-center justify-center overflow-hidden bg-gradient-to-br from-pink-50 to-purple-50">
                   {product.image_url ? (
                     <img
                       src={product.image_url}
@@ -188,40 +246,108 @@ export const Shop = () => {
                       className="h-full w-full object-cover"
                     />
                   ) : (
-                    <div className="text-gray-400">No image</div>
+                    <div className="text-sm text-gray-400">No image</div>
                   )}
                 </div>
                 <div className="p-4">
-                  <div className="flex justify-between items-start mb-2">
-                    <h3 className="text-lg font-semibold text-gray-900 line-clamp-2">
+                  <div className="mb-2 flex items-start justify-between">
+                    <h3 className="line-clamp-2 flex-1 text-base font-semibold text-gray-900">
                       {product.title}
                     </h3>
-                    <span className="text-lg font-bold text-blue-600 ml-2">
-                      ${parseFloat(product.price).toFixed(2)}
+                    <span
+                      className="ml-2 text-lg font-bold whitespace-nowrap"
+                      style={{ color: 'var(--primary)' }}
+                    >
+                      ₱{parseFloat(product.price).toFixed(2)}
                     </span>
                   </div>
-                  <p className="text-sm text-gray-600 mb-2 line-clamp-2">
-                    {product.description}
+                  <p className="mb-3 line-clamp-2 text-xs text-gray-600">
+                    {product.description || product.users?.full_name}
                   </p>
-                  <div className="flex items-center justify-between text-xs text-gray-500 mb-3">
-                    <span className="bg-gray-100 px-2 py-1 rounded">
+                  <div className="mb-3 flex items-center justify-between text-xs">
+                    <span
+                      className="rounded-full px-2 py-1"
+                      style={{ backgroundColor: 'var(--bg-card-pink)', color: 'var(--primary)' }}
+                    >
                       {product.condition?.replace('_', ' ')}
                     </span>
-                    <span>{product.categories?.name}</span>
+                    <span className="text-gray-500">{product.categories?.name}</span>
                   </div>
-                  <button
-                    onClick={() => addToCart(product.id)}
-                    className="w-full flex items-center justify-center gap-2 bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 transition-colors"
-                  >
-                    <ShoppingCart className="h-4 w-4" />
-                    Add to Cart
-                  </button>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => handleProductAction(product, 'buy')}
+                      className="flex flex-1 items-center justify-center gap-2 rounded-lg px-3 py-2.5 text-sm font-medium text-white transition-all duration-200 hover:shadow-md"
+                      style={{ backgroundColor: 'var(--primary)' }}
+                      onMouseEnter={(e) =>
+                        (e.currentTarget.style.backgroundColor = 'var(--primary-hover)')
+                      }
+                      onMouseLeave={(e) =>
+                        (e.currentTarget.style.backgroundColor = 'var(--primary)')
+                      }
+                    >
+                      <ShoppingBag className="h-4 w-4" />
+                      Buy Now
+                    </button>
+                    <button
+                      onClick={() => handleProductAction(product, 'add')}
+                      className="flex items-center justify-center gap-2 rounded-lg border px-3 py-2.5 text-sm font-medium transition-all duration-200 hover:shadow-sm"
+                      style={{ borderColor: 'var(--primary)', color: 'var(--primary)' }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.backgroundColor = 'var(--bg-card-pink)'
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.backgroundColor = 'transparent'
+                      }}
+                    >
+                      <ShoppingCart className="h-4 w-4" />
+                    </button>
+                  </div>
                 </div>
               </div>
             ))}
           </div>
         )}
       </div>
+
+      {/* Size Selection Dialog */}
+      <Dialog open={showSizeDialog} onOpenChange={setShowSizeDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Select Size</DialogTitle>
+            <DialogDescription>
+              Please choose your size for {selectedProduct?.title}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid grid-cols-3 gap-3 py-4">
+            {['XS', 'S', 'M', 'L', 'XL', 'XXL'].map((size) => (
+              <button
+                key={size}
+                onClick={() => setSelectedSize(size)}
+                className={`rounded-lg px-4 py-3 font-medium transition-all duration-200 ${
+                  selectedSize === size
+                    ? 'text-white shadow-md'
+                    : 'border border-gray-300 text-gray-700 hover:border-gray-400'
+                }`}
+                style={selectedSize === size ? { backgroundColor: 'var(--primary)' } : {}}
+              >
+                {size}
+              </button>
+            ))}
+          </div>
+          <div className="mt-2 flex gap-3">
+            <Button variant="outline" onClick={() => setShowSizeDialog(false)} className="flex-1">
+              Cancel
+            </Button>
+            <Button
+              onClick={handleSizeConfirm}
+              className="flex-1 text-white"
+              style={{ backgroundColor: 'var(--primary)' }}
+            >
+              Confirm
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

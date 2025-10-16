@@ -78,13 +78,36 @@ function OrderCard({ order, userRole, onStatusUpdate }) {
 
   const handleStatusChange = async (newStatus) => {
     try {
+      // Update order status
       const { error } = await supabase
         .from('orders')
         .update({ status: newStatus, updated_at: new Date().toISOString() })
         .eq('id', order.id)
 
       if (error) throw error
-      toast.success('Order status updated successfully!')
+
+      // If order is cancelled, update all products in the order back to available
+      if (newStatus === 'cancelled') {
+        const { data: orderItems, error: fetchError } = await supabase
+          .from('order_items')
+          .select('product_id')
+          .eq('order_id', order.id)
+
+        if (!fetchError && orderItems) {
+          const productIds = orderItems.map(item => item.product_id)
+
+          const { error: updateError } = await supabase
+            .from('products')
+            .update({ status: 'available' })
+            .in('id', productIds)
+
+          if (updateError) {
+            console.error('Error updating product status:', updateError)
+          }
+        }
+      }
+
+      toast.success(newStatus === 'cancelled' ? 'Order cancelled successfully!' : 'Order status updated successfully!')
       if (onStatusUpdate) onStatusUpdate()
     } catch (error) {
       toast.error('Error updating order status: ' + error.message)
