@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { AddProductDialog } from '@/components/AddProductDialog'
+import { EditProductDialog } from '@/components/EditProductDialog'
+import { DeleteConfirmationDialog } from '@/components/DeleteConfirmationDialog'
 import { Plus, Edit, Trash2, Package, BarChart3, ImagePlus, Info } from 'lucide-react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -16,12 +18,18 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Skeleton } from '@/components/ui/skeleton'
+import { toast } from 'sonner'
 
 export const SellerDashboard = () => {
   const [products, setProducts] = useState([])
   const [categories, setCategories] = useState([])
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState('products')
+  const [editingProduct, setEditingProduct] = useState(null)
+  const [editDialogOpen, setEditDialogOpen] = useState(false)
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [productToDelete, setProductToDelete] = useState(null)
+  const [deleting, setDeleting] = useState(false)
   const { user } = useAuth()
   const navigate = useNavigate()
 
@@ -58,22 +66,34 @@ export const SellerDashboard = () => {
     fetchMyProducts()
   }, [fetchCategories, fetchMyProducts])
 
-  const deleteProduct = useCallback(
-    async (id) => {
-      if (confirm('Are you sure you want to delete this product?')) {
-        const { error } = await supabase.from('products').delete().eq('id', id)
+  const handleEditProduct = useCallback((product) => {
+    setEditingProduct(product)
+    setEditDialogOpen(true)
+  }, [])
 
-        if (error) {
-          console.error('Error deleting product:', error)
-          toast.error('Failed to delete product')
-        } else {
-          toast.success('Product deleted successfully')
-          fetchMyProducts()
-        }
-      }
-    },
-    [fetchMyProducts]
-  )
+  const handleDeleteClick = useCallback((product) => {
+    setProductToDelete(product)
+    setDeleteDialogOpen(true)
+  }, [])
+
+  const handleDeleteConfirm = useCallback(async () => {
+    if (!productToDelete) return
+
+    setDeleting(true)
+    const { error } = await supabase.from('products').delete().eq('id', productToDelete.id)
+
+    if (error) {
+      console.error('Error deleting product:', error)
+      toast.error('Failed to delete product')
+    } else {
+      toast.success('Product deleted successfully')
+      fetchMyProducts()
+    }
+
+    setDeleting(false)
+    setDeleteDialogOpen(false)
+    setProductToDelete(null)
+  }, [productToDelete, fetchMyProducts])
 
   const stats = useMemo(
     () => ({
@@ -303,7 +323,7 @@ export const SellerDashboard = () => {
                           </div>
                           <div className="flex gap-2">
                             <Button
-                              onClick={() => navigate('/seller/edit/' + product.id)}
+                              onClick={() => handleEditProduct(product)}
                               variant="outline"
                               className="border-primary text-primary hover:bg-primary hover:text-primary-foreground flex-1"
                             >
@@ -311,7 +331,7 @@ export const SellerDashboard = () => {
                               Edit
                             </Button>
                             <Button
-                              onClick={() => deleteProduct(product.id)}
+                              onClick={() => handleDeleteClick(product)}
                               variant="outline"
                               className="border-red-500 text-red-600 hover:bg-red-500 hover:text-white"
                             >
@@ -460,6 +480,23 @@ export const SellerDashboard = () => {
           </CardContent>
         </Card>
       </div>
+
+      {/* Edit Product Dialog */}
+      <EditProductDialog
+        product={editingProduct}
+        open={editDialogOpen}
+        onOpenChange={setEditDialogOpen}
+        onSuccess={fetchMyProducts}
+      />
+
+      {/* Delete Confirmation Dialog */}
+      <DeleteConfirmationDialog
+        open={deleteDialogOpen}
+        onOpenChange={setDeleteDialogOpen}
+        onConfirm={handleDeleteConfirm}
+        productTitle={productToDelete?.title || ''}
+        loading={deleting}
+      />
     </div>
   )
 }

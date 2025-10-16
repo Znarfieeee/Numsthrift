@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
-import { Search, Filter, ShoppingCart, ShoppingBag } from 'lucide-react'
+import { Search, Filter, ShoppingCart, ShoppingBag, X, Package, Tag, Star } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { ProductGridSkeleton } from '@/components/ui/product-skeleton'
 import { toast } from 'sonner'
@@ -23,6 +23,8 @@ export const Shop = () => {
   const [selectedProduct, setSelectedProduct] = useState(null)
   const [selectedSize, setSelectedSize] = useState('')
   const [showSizeDialog, setShowSizeDialog] = useState(false)
+  const [showProductDetail, setShowProductDetail] = useState(false)
+  const [detailProduct, setDetailProduct] = useState(null)
   const [actionType, setActionType] = useState('') // 'add' or 'buy'
   const { user } = useAuth()
 
@@ -91,6 +93,11 @@ export const Shop = () => {
     setLoading(false)
   }
 
+  const handleProductClick = (product) => {
+    setDetailProduct(product)
+    setShowProductDetail(true)
+  }
+
   const handleProductAction = (product, action) => {
     if (!user) {
       toast.error('Please sign in first')
@@ -99,6 +106,7 @@ export const Shop = () => {
     setSelectedProduct(product)
     setActionType(action)
     setSelectedSize('')
+    setShowProductDetail(false)
     setShowSizeDialog(true)
   }
 
@@ -235,10 +243,10 @@ export const Shop = () => {
             {filteredProducts.map((product) => (
               <div
                 key={product.id}
-                className="overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-md"
-                style={{ maxWidth: '320px', margin: '0 auto' }}
+                onClick={() => handleProductClick(product)}
+                className="flex flex-col overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-md cursor-pointer"
               >
-                <div className="flex h-56 items-center justify-center overflow-hidden bg-gradient-to-br from-pink-50 to-purple-50">
+                <div className="flex h-56 flex-shrink-0 items-center justify-center overflow-hidden bg-gradient-to-br from-pink-50 to-purple-50">
                   {product.image_url ? (
                     <img
                       src={product.image_url}
@@ -249,9 +257,9 @@ export const Shop = () => {
                     <div className="text-sm text-gray-400">No image</div>
                   )}
                 </div>
-                <div className="p-4">
+                <div className="flex flex-1 flex-col p-4">
                   <div className="mb-2 flex items-start justify-between">
-                    <h3 className="line-clamp-2 flex-1 text-base font-semibold text-gray-900">
+                    <h3 className="line-clamp-2 flex-1 text-base font-semibold text-gray-900" style={{ minHeight: '3rem' }}>
                       {product.title}
                     </h3>
                     <span
@@ -261,7 +269,7 @@ export const Shop = () => {
                       ₱{parseFloat(product.price).toFixed(2)}
                     </span>
                   </div>
-                  <p className="mb-3 line-clamp-2 text-xs text-gray-600">
+                  <p className="mb-3 line-clamp-2 text-xs text-gray-600" style={{ minHeight: '2.5rem' }}>
                     {product.description || product.users?.full_name}
                   </p>
                   <div className="mb-3 flex items-center justify-between text-xs">
@@ -273,9 +281,12 @@ export const Shop = () => {
                     </span>
                     <span className="text-gray-500">{product.categories?.name}</span>
                   </div>
-                  <div className="flex gap-2">
+                  <div className="mt-auto flex gap-2">
                     <button
-                      onClick={() => handleProductAction(product, 'buy')}
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        handleProductAction(product, 'buy')
+                      }}
                       className="flex flex-1 items-center justify-center gap-2 rounded-lg px-3 py-2.5 text-sm font-medium text-white transition-all duration-200 hover:shadow-md"
                       style={{ backgroundColor: 'var(--primary)' }}
                       onMouseEnter={(e) =>
@@ -289,7 +300,10 @@ export const Shop = () => {
                       Buy Now
                     </button>
                     <button
-                      onClick={() => handleProductAction(product, 'add')}
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        handleProductAction(product, 'add')
+                      }}
                       className="flex items-center justify-center gap-2 rounded-lg border px-3 py-2.5 text-sm font-medium transition-all duration-200 hover:shadow-sm"
                       style={{ borderColor: 'var(--primary)', color: 'var(--primary)' }}
                       onMouseEnter={(e) => {
@@ -308,6 +322,153 @@ export const Shop = () => {
           </div>
         )}
       </div>
+
+      {/* Product Detail Dialog */}
+      <Dialog open={showProductDetail} onOpenChange={setShowProductDetail}>
+        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-3xl">
+          {detailProduct && (
+            <div className="space-y-6">
+              <DialogHeader>
+                <DialogTitle className="text-2xl font-bold" style={{ color: 'var(--primary)' }}>
+                  {detailProduct.title}
+                </DialogTitle>
+              </DialogHeader>
+
+              <div className="grid gap-6 md:grid-cols-2">
+                {/* Image Section */}
+                <div className="space-y-3">
+                  <div className="overflow-hidden rounded-lg border-2" style={{ borderColor: 'var(--bg-card-pink)' }}>
+                    {detailProduct.image_url ? (
+                      <img
+                        src={detailProduct.image_url}
+                        alt={detailProduct.title}
+                        className="h-80 w-full object-cover"
+                      />
+                    ) : (
+                      <div className="flex h-80 items-center justify-center bg-gray-100">
+                        <Package className="h-20 w-20 text-gray-300" />
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Additional Images */}
+                  {detailProduct.additional_images && detailProduct.additional_images.length > 0 && (
+                    <div className="grid grid-cols-4 gap-2">
+                      {detailProduct.additional_images.map((img, idx) => (
+                        <img
+                          key={idx}
+                          src={img}
+                          alt={`${detailProduct.title} ${idx + 2}`}
+                          className="h-20 w-full rounded-lg border object-cover"
+                        />
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Product Info Section */}
+                <div className="space-y-4">
+                  {/* Price */}
+                  <div className="rounded-lg p-4" style={{ backgroundColor: 'var(--bg-card-pink)' }}>
+                    <div className="text-sm text-gray-600">Price</div>
+                    <div className="text-3xl font-bold" style={{ color: 'var(--primary)' }}>
+                      ₱{parseFloat(detailProduct.price).toFixed(2)}
+                    </div>
+                  </div>
+
+                  {/* Product Details */}
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2 text-sm">
+                      <Tag className="h-4 w-4" style={{ color: 'var(--primary)' }} />
+                      <span className="font-semibold">Condition:</span>
+                      <span className="rounded-full px-2 py-1 text-xs" style={{ backgroundColor: 'var(--bg-card-purple)', color: 'var(--secondary)' }}>
+                        {detailProduct.condition?.replace('_', ' ')}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center gap-2 text-sm">
+                      <Package className="h-4 w-4" style={{ color: 'var(--primary)' }} />
+                      <span className="font-semibold">Quantity Available:</span>
+                      <span>{detailProduct.quantity}</span>
+                    </div>
+
+                    {detailProduct.brand && (
+                      <div className="flex items-center gap-2 text-sm">
+                        <Star className="h-4 w-4" style={{ color: 'var(--primary)' }} />
+                        <span className="font-semibold">Brand:</span>
+                        <span>{detailProduct.brand}</span>
+                      </div>
+                    )}
+
+                    {detailProduct.size && (
+                      <div className="flex items-center gap-2 text-sm">
+                        <Tag className="h-4 w-4" style={{ color: 'var(--primary)' }} />
+                        <span className="font-semibold">Size:</span>
+                        <span>{detailProduct.size}</span>
+                      </div>
+                    )}
+
+                    {detailProduct.categories && (
+                      <div className="flex items-center gap-2 text-sm">
+                        <Filter className="h-4 w-4" style={{ color: 'var(--primary)' }} />
+                        <span className="font-semibold">Category:</span>
+                        <span>{detailProduct.categories.name}</span>
+                      </div>
+                    )}
+
+                    {detailProduct.users?.full_name && (
+                      <div className="flex items-center gap-2 text-sm">
+                        <span className="font-semibold">Seller:</span>
+                        <span>{detailProduct.users.full_name}</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Description */}
+                  <div className="rounded-lg border-2 p-4" style={{ borderColor: 'var(--bg-card-purple)' }}>
+                    <h3 className="mb-2 font-semibold text-gray-900">Description</h3>
+                    <p className="text-sm text-gray-600">
+                      {detailProduct.description || 'No description available.'}
+                    </p>
+                  </div>
+
+                  {/* Action Buttons */}
+                  <div className="flex gap-3 pt-4">
+                    <button
+                      onClick={() => handleProductAction(detailProduct, 'buy')}
+                      className="flex flex-1 items-center justify-center gap-2 rounded-lg px-4 py-3 font-medium text-white transition-all duration-200 hover:shadow-md"
+                      style={{ backgroundColor: 'var(--primary)' }}
+                      onMouseEnter={(e) =>
+                        (e.currentTarget.style.backgroundColor = 'var(--primary-hover)')
+                      }
+                      onMouseLeave={(e) =>
+                        (e.currentTarget.style.backgroundColor = 'var(--primary)')
+                      }
+                    >
+                      <ShoppingBag className="h-5 w-5" />
+                      Buy Now
+                    </button>
+                    <button
+                      onClick={() => handleProductAction(detailProduct, 'add')}
+                      className="flex flex-1 items-center justify-center gap-2 rounded-lg border-2 px-4 py-3 font-medium transition-all duration-200 hover:shadow-sm"
+                      style={{ borderColor: 'var(--primary)', color: 'var(--primary)' }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.backgroundColor = 'var(--bg-card-pink)'
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.backgroundColor = 'transparent'
+                      }}
+                    >
+                      <ShoppingCart className="h-5 w-5" />
+                      Add to Cart
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* Size Selection Dialog */}
       <Dialog open={showSizeDialog} onOpenChange={setShowSizeDialog}>
