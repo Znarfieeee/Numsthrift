@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
-import { Search, Filter, ShoppingCart, ShoppingBag, X, Package, Tag, Star } from 'lucide-react'
+import { Search, Filter, ShoppingCart, ShoppingBag, X, Package, Tag, Star, Store } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { ProductGridSkeleton } from '@/components/ui/product-skeleton'
 import { toast } from 'sonner'
@@ -376,6 +376,23 @@ export const Shop = () => {
                     </div>
                   </div>
 
+                  {/* Seller Information - Prominent Display */}
+                  {detailProduct.users?.full_name && (
+                    <div className="rounded-lg border-2 p-4" style={{ borderColor: 'var(--bg-card-pink)', backgroundColor: 'var(--bg-hero)' }}>
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-12 w-12 items-center justify-center rounded-full" style={{ backgroundColor: 'var(--bg-card-pink)' }}>
+                          <Store className="h-6 w-6" style={{ color: 'var(--primary)' }} />
+                        </div>
+                        <div>
+                          <div className="text-xs text-gray-600">Sold by</div>
+                          <div className="font-semibold text-gray-900" style={{ color: 'var(--primary)' }}>
+                            {detailProduct.users.full_name}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
                   {/* Product Details */}
                   <div className="space-y-3">
                     <div className="flex items-center gap-2 text-sm">
@@ -413,13 +430,6 @@ export const Shop = () => {
                         <Filter className="h-4 w-4" style={{ color: 'var(--primary)' }} />
                         <span className="font-semibold">Category:</span>
                         <span>{detailProduct.categories.name}</span>
-                      </div>
-                    )}
-
-                    {detailProduct.users?.full_name && (
-                      <div className="flex items-center gap-2 text-sm">
-                        <span className="font-semibold">Seller:</span>
-                        <span>{detailProduct.users.full_name}</span>
                       </div>
                     )}
                   </div>

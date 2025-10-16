@@ -207,16 +207,34 @@ export const AuthProvider = ({ children }) => {
 
   const signOut = useCallback(async () => {
     try {
-      const { error } = await supabase.auth.signOut()
-      if (error) throw error
+      // Clear all local storage first
+      localStorage.clear()
+      sessionStorage.clear()
 
+      // Clear state
       setProfile(null)
       setUser(null)
-      localStorage.removeItem('userProfile')
+
+      // Sign out from Supabase with global scope to clear all sessions
+      const { error } = await supabase.auth.signOut()
+
+      if (error) {
+        console.warn('Sign out warning:', error)
+      }
+
       toast.success('Signed out successfully')
+
+      // Force navigation and reload
+      window.location.replace('/')
     } catch (error) {
       console.error('Error signing out:', error)
-      toast.error('Failed to sign out')
+      // Ensure cleanup even on error
+      localStorage.clear()
+      sessionStorage.clear()
+      setProfile(null)
+      setUser(null)
+      toast.success('Signed out successfully')
+      window.location.replace('/')
     }
   }, [])
 

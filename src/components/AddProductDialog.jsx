@@ -46,7 +46,7 @@ export function AddProductDialog({ trigger, onSuccess }) {
           price: '',
           quantity: '1',
           category_id: '',
-          condition: 'good',
+          condition: 'excellent',
           brand: '',
           size: '',
         }
@@ -58,7 +58,7 @@ export function AddProductDialog({ trigger, onSuccess }) {
       price: '',
       quantity: '1',
       category_id: '',
-      condition: 'good',
+      condition: 'excellent',
       brand: '',
       size: '',
     }
@@ -232,7 +232,7 @@ export function AddProductDialog({ trigger, onSuccess }) {
       price: '',
       quantity: '1',
       category_id: '',
-      condition: 'good',
+      condition: 'excellent',
       brand: '',
       size: '',
     })
@@ -494,11 +494,12 @@ export function AddProductDialog({ trigger, onSuccess }) {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="new">New</SelectItem>
-                    <SelectItem value="like_new">Like New</SelectItem>
-                    <SelectItem value="good">Good</SelectItem>
-                    <SelectItem value="fair">Fair</SelectItem>
-                    <SelectItem value="poor">Poor</SelectItem>
+                    <SelectItem value="brand_new">Brand New with Tags</SelectItem>
+                    <SelectItem value="like_new">Like New (Barely Worn)</SelectItem>
+                    <SelectItem value="excellent">Excellent (Gently Used)</SelectItem>
+                    <SelectItem value="good">Good (Minor Signs of Wear)</SelectItem>
+                    <SelectItem value="fair">Fair (Noticeable Wear)</SelectItem>
+                    <SelectItem value="vintage">Vintage</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -507,25 +508,37 @@ export function AddProductDialog({ trigger, onSuccess }) {
             {/* Brand and Size */}
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="brand">Brand</Label>
+                <Label htmlFor="brand">Brand (Optional)</Label>
                 <Input
                   id="brand"
                   name="brand"
                   value={formData.brand}
                   onChange={handleChange}
-                  placeholder="e.g., Nike, Apple"
+                  placeholder="e.g., H&M, Zara, Uniqlo"
                 />
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="size">Size</Label>
-                <Input
-                  id="size"
-                  name="size"
+                <Label htmlFor="size">Size *</Label>
+                <Select
                   value={formData.size}
-                  onChange={handleChange}
-                  placeholder="e.g., M, L, XL"
-                />
+                  onValueChange={(value) => setFormData((prev) => ({ ...prev, size: value }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select size" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="XXS">XXS</SelectItem>
+                    <SelectItem value="XS">XS</SelectItem>
+                    <SelectItem value="S">S (Small)</SelectItem>
+                    <SelectItem value="M">M (Medium)</SelectItem>
+                    <SelectItem value="L">L (Large)</SelectItem>
+                    <SelectItem value="XL">XL</SelectItem>
+                    <SelectItem value="XXL">XXL</SelectItem>
+                    <SelectItem value="XXXL">XXXL</SelectItem>
+                    <SelectItem value="Free Size">Free Size</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </div>
           </div>
