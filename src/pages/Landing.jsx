@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { ShoppingBag, Heart, TrendingUp, Shield, Sparkles, Tag, Users } from 'lucide-react'
+import { ShoppingBag, Heart, TrendingUp, Shield, Sparkles, Tag, Users, Phone, Mail, Facebook, Instagram } from 'lucide-react'
 
 import HERO from '@/assets/hero.jpg'
 import COMMUNITY from '@/assets/community.jpg'
@@ -196,6 +196,92 @@ export const Landing = () => {
           </div>
         </div>
       </div>
+
+      {/* Footer */}
+      <footer className="bg-gray-900 text-gray-300">
+        <div className="max-w-7xl mx-auto py-12 px-4 sm:px-6 lg:px-8">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            {/* Need Assistance Section */}
+            <div>
+              <h3 className="text-white text-lg font-bold mb-4">NEED ASSISTANCE?</h3>
+              <div className="space-y-2">
+                <a href="tel:032-3497959" className="flex items-center gap-2 hover:text-primary transition-colors">
+                  <Phone className="h-4 w-4" />
+                  <span>032-3497959</span>
+                </a>
+                <a href="tel:09636415211" className="flex items-center gap-2 hover:text-primary transition-colors">
+                  <Phone className="h-4 w-4" />
+                  <span>09636415211</span>
+                </a>
+                <a href="mailto:support@numsthrift.com" className="flex items-center gap-2 hover:text-primary transition-colors">
+                  <Mail className="h-4 w-4" />
+                  <span>support@numsthrift.com</span>
+                </a>
+              </div>
+            </div>
+
+            {/* Terms & Conditions Section */}
+            <div>
+              <h3 className="text-white text-lg font-bold mb-4">TERMS & CONDITIONS</h3>
+              <ul className="space-y-2">
+                <li>
+                  <Link to="/terms" className="hover:text-primary transition-colors">
+                    Terms & Conditions
+                  </Link>
+                </li>
+                <li>
+                  <Link to="/privacy" className="hover:text-primary transition-colors">
+                    Privacy Policy
+                  </Link>
+                </li>
+                <li>
+                  <Link to="/shipping" className="hover:text-primary transition-colors">
+                    Shipping Policy
+                  </Link>
+                </li>
+                <li>
+                  <Link to="/refund" className="hover:text-primary transition-colors">
+                    Refund Policy
+                  </Link>
+                </li>
+                <li>
+                  <Link to="/accessibility" className="hover:text-primary transition-colors">
+                    Accessibility Statement
+                  </Link>
+                </li>
+              </ul>
+            </div>
+
+            {/* Stay Connected Section */}
+            <div>
+              <h3 className="text-white text-lg font-bold mb-4">STAY CONNECTED</h3>
+              <div className="flex gap-4">
+                <a
+                  href="https://facebook.com"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center justify-center h-10 w-10 rounded-full bg-gray-800 hover:bg-primary transition-colors"
+                >
+                  <Facebook className="h-5 w-5" />
+                </a>
+                <a
+                  href="https://instagram.com"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center justify-center h-10 w-10 rounded-full bg-gray-800 hover:bg-primary transition-colors"
+                >
+                  <Instagram className="h-5 w-5" />
+                </a>
+              </div>
+            </div>
+          </div>
+
+          {/* Copyright Section */}
+          <div className="mt-8 pt-8 border-t border-gray-800 text-center text-sm">
+            <p>© 2025 by Numsthrift. Powered and secured by Supabase</p>
+          </div>
+        </div>
+      </footer>
     </div>
   )
 }
