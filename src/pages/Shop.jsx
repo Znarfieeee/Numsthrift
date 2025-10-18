@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { Search, Filter, ShoppingCart, ShoppingBag, X, Package, Tag, Star, Store } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
@@ -27,6 +28,7 @@ export const Shop = () => {
   const [detailProduct, setDetailProduct] = useState(null)
   const [actionType, setActionType] = useState('') // 'add' or 'buy'
   const { user } = useAuth()
+  const navigate = useNavigate()
 
   useEffect(() => {
     const initializeShop = async () => {
@@ -100,7 +102,10 @@ export const Shop = () => {
 
   const handleProductAction = (product, action) => {
     if (!user) {
-      toast.error('Please sign in first')
+      toast.error('Please sign in to continue')
+      setTimeout(() => {
+        navigate('/login')
+      }, 1000)
       return
     }
     setSelectedProduct(product)
@@ -161,10 +166,10 @@ export const Shop = () => {
         throw error
       }
 
-      toast.success('Redirecting to cart...')
-      // Redirect to cart after a brief delay
+      toast.success('Redirecting to checkout...')
+      // Redirect to checkout after a brief delay
       setTimeout(() => {
-        window.location.href = '/cart'
+        navigate('/checkout')
       }, 500)
     } catch (error) {
       console.error('Error processing order:', error)
