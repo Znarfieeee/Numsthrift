@@ -258,14 +258,20 @@ export function AddProductDialog({ trigger, onSuccess }) {
       return
     }
 
+    // Verify user is authenticated
+    if (!user || !user.id) {
+      toast.error('You must be logged in to add products')
+      return
+    }
+
     setLoading(true)
 
     try {
       // Upload images first
       const { mainImage, additionalImages } = await uploadImages()
 
-      // Insert product
-      const { error } = await supabase.from('products').insert({
+      // Prepare product data
+      const productData = {
         title: formData.title,
         description: formData.description,
         price: parseFloat(formData.price),
@@ -278,7 +284,12 @@ export function AddProductDialog({ trigger, onSuccess }) {
         additional_images: additionalImages.length > 0 ? additionalImages : null,
         seller_id: user.id,
         status: 'available',
-      })
+      }
+
+      console.log('Adding product with seller_id:', user.id)
+
+      // Insert product
+      const { error } = await supabase.from('products').insert(productData)
 
       if (error) throw error
 
@@ -471,10 +482,10 @@ export function AddProductDialog({ trigger, onSuccess }) {
                     setFormData((prev) => ({ ...prev, category_id: value }))
                   }
                 >
-                  <SelectTrigger>
+                  <SelectTrigger id="category_id">
                     <SelectValue placeholder="Select category" />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent position="popper" sideOffset={5}>
                     {categories.map((category) => (
                       <SelectItem key={category.id} value={category.id}>
                         {category.name}
@@ -490,10 +501,10 @@ export function AddProductDialog({ trigger, onSuccess }) {
                   value={formData.condition}
                   onValueChange={(value) => setFormData((prev) => ({ ...prev, condition: value }))}
                 >
-                  <SelectTrigger>
-                    <SelectValue />
+                  <SelectTrigger id="condition">
+                    <SelectValue placeholder="Select condition" />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent position="popper" sideOffset={5}>
                     <SelectItem value="brand_new">Brand New with Tags</SelectItem>
                     <SelectItem value="like_new">Like New (Barely Worn)</SelectItem>
                     <SelectItem value="excellent">Excellent (Gently Used)</SelectItem>
@@ -524,10 +535,10 @@ export function AddProductDialog({ trigger, onSuccess }) {
                   value={formData.size}
                   onValueChange={(value) => setFormData((prev) => ({ ...prev, size: value }))}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger id="size">
                     <SelectValue placeholder="Select size" />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent position="popper" sideOffset={5}>
                     <SelectItem value="XXS">XXS</SelectItem>
                     <SelectItem value="XS">XS</SelectItem>
                     <SelectItem value="S">S (Small)</SelectItem>

@@ -108,11 +108,26 @@ export const Shop = () => {
       }, 1000)
       return
     }
+
+    // Check if product needs size selection
+    const categoryName = product.categories?.name?.toLowerCase() || ''
+    const needsSize = !categoryName.includes('bag') && !categoryName.includes('accessories')
+
     setSelectedProduct(product)
     setActionType(action)
     setSelectedSize('')
     setShowProductDetail(false)
-    setShowSizeDialog(true)
+
+    // If product doesn't need size, proceed directly
+    if (!needsSize) {
+      if (action === 'add') {
+        addToCart(product.id, 'N/A')
+      } else if (action === 'buy') {
+        buyNow(product.id, 'N/A')
+      }
+    } else {
+      setShowSizeDialog(true)
+    }
   }
 
   const handleSizeConfirm = async () => {
@@ -274,8 +289,19 @@ export const Shop = () => {
                       ₱{parseFloat(product.price).toFixed(2)}
                     </span>
                   </div>
+
+                  {/* Seller Information */}
+                  {product.users?.full_name && (
+                    <div className="mb-2 flex items-center gap-1.5 text-xs text-gray-600">
+                      <Store className="h-3 w-3" style={{ color: 'var(--primary)' }} />
+                      <span className="font-medium" style={{ color: 'var(--primary)' }}>
+                        {product.users.full_name}
+                      </span>
+                    </div>
+                  )}
+
                   <p className="mb-3 line-clamp-2 text-xs text-gray-600" style={{ minHeight: '2.5rem' }}>
-                    {product.description || product.users?.full_name}
+                    {product.description}
                   </p>
                   <div className="mb-3 flex items-center justify-between text-xs">
                     <span
@@ -495,20 +521,30 @@ export const Shop = () => {
             </DialogDescription>
           </DialogHeader>
           <div className="grid grid-cols-3 gap-3 py-4">
-            {['XS', 'S', 'M', 'L', 'XL', 'XXL'].map((size) => (
-              <button
-                key={size}
-                onClick={() => setSelectedSize(size)}
-                className={`rounded-lg px-4 py-3 font-medium transition-all duration-200 ${
-                  selectedSize === size
-                    ? 'text-white shadow-md'
-                    : 'border border-gray-300 text-gray-700 hover:border-gray-400'
-                }`}
-                style={selectedSize === size ? { backgroundColor: 'var(--primary)' } : {}}
-              >
-                {size}
-              </button>
-            ))}
+            {(() => {
+              const categoryName = selectedProduct?.categories?.name?.toLowerCase() || ''
+              let sizes = ['XS', 'S', 'M', 'L', 'XL', 'XXL'] // Default clothing sizes
+
+              // Shoe sizes
+              if (categoryName.includes('shoe')) {
+                sizes = ['5', '6', '7', '8', '9', '10', '11', '12']
+              }
+
+              return sizes.map((size) => (
+                <button
+                  key={size}
+                  onClick={() => setSelectedSize(size)}
+                  className={`rounded-lg px-4 py-3 font-medium transition-all duration-200 ${
+                    selectedSize === size
+                      ? 'text-white shadow-md'
+                      : 'border border-gray-300 text-gray-700 hover:border-gray-400'
+                  }`}
+                  style={selectedSize === size ? { backgroundColor: 'var(--primary)' } : {}}
+                >
+                  {size}
+                </button>
+              ))
+            })()}
           </div>
           <div className="mt-2 flex gap-3">
             <Button variant="outline" onClick={() => setShowSizeDialog(false)} className="flex-1">
