@@ -411,12 +411,15 @@ export function AddProductDialog({ trigger, onSuccess }) {
         status: 'available',
       }
 
-      console.log('Adding product with seller_id:', user.id)
+      console.log('Adding product with data:', productData)
 
       // Insert product
       const { error } = await supabase.from('products').insert(productData)
 
-      if (error) throw error
+      if (error) {
+        console.error('Database error:', error)
+        throw error
+      }
 
       toast.success('Product added successfully!')
       resetForm()
@@ -619,12 +622,15 @@ export function AddProductDialog({ trigger, onSuccess }) {
                 <Label htmlFor="condition">Condition *</Label>
                 <Select
                   value={formData.condition}
-                  onValueChange={(value) => setFormData((prev) => ({ ...prev, condition: value }))}
+                  onValueChange={(value) => {
+                    console.log('Condition changed to:', value)
+                    setFormData((prev) => ({ ...prev, condition: value }))
+                  }}
                 >
                   <SelectTrigger id="condition">
                     <SelectValue placeholder="Select condition" />
                   </SelectTrigger>
-                  <SelectContent position="popper" sideOffset={5}>
+                  <SelectContent>
                     <SelectItem value="brand_new">Brand New with Tags</SelectItem>
                     <SelectItem value="like_new">Like New (Barely Worn)</SelectItem>
                     <SelectItem value="excellent">Excellent (Gently Used)</SelectItem>
