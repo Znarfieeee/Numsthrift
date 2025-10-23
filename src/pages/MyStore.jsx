@@ -40,25 +40,19 @@ export const MyStore = () => {
   }, [selectedCategory, selectedStatus, isSeller, navigate])
 
   const fetchCategories = async () => {
-    const { data } = await supabase
-      .from('categories')
-      .select('*')
-      .order('name')
+    const { data } = await supabase.from('categories').select('*').order('name')
 
     if (data) setCategories(data)
   }
 
   const fetchMyProducts = async () => {
     setLoading(true)
-    let query = supabase
-      .from('products')
-      .select('*, categories (name)')
-      .eq('seller_id', user.id)
+    let query = supabase.from('products').select('*, categories (name)').eq('seller_id', user.id)
 
     if (selectedCategory) {
       query = query.eq('category_id', selectedCategory)
     }
-    
+
     if (selectedStatus !== 'all') {
       query = query.eq('status', selectedStatus)
     }
@@ -103,16 +97,17 @@ export const MyStore = () => {
     setProductToDelete(null)
   }
 
-  const filteredProducts = products.filter(product =>
-    product.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    product.description?.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredProducts = products.filter(
+    (product) =>
+      product.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      product.description?.toLowerCase().includes(searchTerm.toLowerCase())
   )
 
   const statusOptions = [
     { value: 'all', label: 'All Status' },
     { value: 'available', label: 'Available' },
     { value: 'sold', label: 'Sold' },
-    { value: 'draft', label: 'Draft' }
+    { value: 'draft', label: 'Draft' },
   ]
 
   return (
@@ -237,7 +232,10 @@ export const MyStore = () => {
                 </div>
                 <div className="flex flex-1 flex-col p-4">
                   <div className="mb-2 flex items-start justify-between">
-                    <h3 className="line-clamp-2 flex-1 text-base font-semibold text-gray-900" style={{ minHeight: '3rem' }}>
+                    <h3
+                      className="line-clamp-2 flex-1 text-base font-semibold text-gray-900"
+                      style={{ minHeight: '3rem' }}
+                    >
                       {product.title}
                     </h3>
                     <span
@@ -247,7 +245,10 @@ export const MyStore = () => {
                       ₱{parseFloat(product.price).toFixed(2)}
                     </span>
                   </div>
-                  <p className="mb-3 line-clamp-2 text-xs text-gray-600" style={{ minHeight: '2.5rem' }}>
+                  <p
+                    className="mb-3 line-clamp-2 text-xs text-gray-600"
+                    style={{ minHeight: '2.5rem' }}
+                  >
                     {product.description || 'No description'}
                   </p>
                   <div className="mb-3 flex items-center justify-between text-xs">

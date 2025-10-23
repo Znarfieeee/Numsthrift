@@ -120,12 +120,131 @@ export function AddProductDialog({ trigger, onSuccess }) {
     }
   }
 
+  // Get size options based on selected category
+  const getSizeOptions = () => {
+    const selectedCategory = categories.find((cat) => cat.id === formData.category_id)
+    const categoryName = selectedCategory?.name?.toLowerCase() || ''
+
+    // Shoes - shoe sizes
+    if (categoryName.includes('shoe') || categoryName.includes('footwear')) {
+      return [
+        { value: '5', label: 'US 5' },
+        { value: '5.5', label: 'US 5.5' },
+        { value: '6', label: 'US 6' },
+        { value: '6.5', label: 'US 6.5' },
+        { value: '7', label: 'US 7' },
+        { value: '7.5', label: 'US 7.5' },
+        { value: '8', label: 'US 8' },
+        { value: '8.5', label: 'US 8.5' },
+        { value: '9', label: 'US 9' },
+        { value: '9.5', label: 'US 9.5' },
+        { value: '10', label: 'US 10' },
+        { value: '10.5', label: 'US 10.5' },
+        { value: '11', label: 'US 11' },
+        { value: '11.5', label: 'US 11.5' },
+        { value: '12', label: 'US 12' },
+        { value: '13', label: 'US 13' },
+      ]
+    }
+
+    // Tops - standard clothing sizes
+    if (
+      categoryName.includes('top') ||
+      categoryName.includes('shirt') ||
+      categoryName.includes('blouse') ||
+      categoryName.includes('jacket') ||
+      categoryName.includes('sweater') ||
+      categoryName.includes('hoodie')
+    ) {
+      return [
+        { value: 'XXS', label: 'XXS' },
+        { value: 'XS', label: 'XS' },
+        { value: 'S', label: 'S (Small)' },
+        { value: 'M', label: 'M (Medium)' },
+        { value: 'L', label: 'L (Large)' },
+        { value: 'XL', label: 'XL' },
+        { value: 'XXL', label: 'XXL' },
+        { value: 'XXXL', label: 'XXXL' },
+      ]
+    }
+
+    // Lowers/Bottoms - waist sizes
+    if (
+      categoryName.includes('bottom') ||
+      categoryName.includes('pant') ||
+      categoryName.includes('jean') ||
+      categoryName.includes('trouser') ||
+      categoryName.includes('short') ||
+      categoryName.includes('skirt')
+    ) {
+      return [
+        { value: '24', label: 'W24' },
+        { value: '25', label: 'W25' },
+        { value: '26', label: 'W26' },
+        { value: '27', label: 'W27' },
+        { value: '28', label: 'W28' },
+        { value: '29', label: 'W29' },
+        { value: '30', label: 'W30' },
+        { value: '31', label: 'W31' },
+        { value: '32', label: 'W32' },
+        { value: '33', label: 'W33' },
+        { value: '34', label: 'W34' },
+        { value: '36', label: 'W36' },
+        { value: '38', label: 'W38' },
+        { value: '40', label: 'W40' },
+      ]
+    }
+
+    // Bags and accessories - no size needed
+    if (categoryName.includes('bag') || categoryName.includes('accessories') || categoryName.includes('accessory')) {
+      return null // No size selection needed
+    }
+
+    // Default for other clothing items
+    return [
+      { value: 'XXS', label: 'XXS' },
+      { value: 'XS', label: 'XS' },
+      { value: 'S', label: 'S (Small)' },
+      { value: 'M', label: 'M (Medium)' },
+      { value: 'L', label: 'L (Large)' },
+      { value: 'XL', label: 'XL' },
+      { value: 'XXL', label: 'XXL' },
+      { value: 'XXXL', label: 'XXXL' },
+      { value: 'Free Size', label: 'Free Size' },
+    ]
+  }
+
+  // Determine if size field should be shown
+  const shouldShowSize = () => {
+    if (!formData.category_id) return true // Show by default if no category selected
+    return getSizeOptions() !== null
+  }
+
   const handleChange = (e) => {
     const { name, value } = e.target
     setFormData((prev) => ({
       ...prev,
       [name]: value,
     }))
+  }
+
+  // Handle category change and clear size if category doesn't need it
+  const handleCategoryChange = (value) => {
+    setFormData((prev) => {
+      const newFormData = { ...prev, category_id: value }
+
+      // Check if new category needs size
+      const selectedCategory = categories.find((cat) => cat.id === value)
+      const categoryName = selectedCategory?.name?.toLowerCase() || ''
+      const needsSize = !(categoryName.includes('bag') || categoryName.includes('accessories') || categoryName.includes('accessory'))
+
+      // Clear size if category doesn't need it
+      if (!needsSize) {
+        newFormData.size = ''
+      }
+
+      return newFormData
+    })
   }
 
   const handleImageSelect = async (e) => {
@@ -255,6 +374,12 @@ export function AddProductDialog({ trigger, onSuccess }) {
 
     if (imageFiles.length === 0) {
       toast.error('Please add at least one product image')
+      return
+    }
+
+    // Check if size is required for selected category
+    if (shouldShowSize() && !formData.size) {
+      toast.error('Please select a size for this product')
       return
     }
 
@@ -476,12 +601,7 @@ export function AddProductDialog({ trigger, onSuccess }) {
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="category_id">Category</Label>
-                <Select
-                  value={formData.category_id}
-                  onValueChange={(value) =>
-                    setFormData((prev) => ({ ...prev, category_id: value }))
-                  }
-                >
+                <Select value={formData.category_id} onValueChange={handleCategoryChange}>
                   <SelectTrigger id="category_id">
                     <SelectValue placeholder="Select category" />
                   </SelectTrigger>
@@ -529,29 +649,36 @@ export function AddProductDialog({ trigger, onSuccess }) {
                 />
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="size">Size *</Label>
-                <Select
-                  value={formData.size}
-                  onValueChange={(value) => setFormData((prev) => ({ ...prev, size: value }))}
-                >
-                  <SelectTrigger id="size">
-                    <SelectValue placeholder="Select size" />
-                  </SelectTrigger>
-                  <SelectContent position="popper" sideOffset={5}>
-                    <SelectItem value="XXS">XXS</SelectItem>
-                    <SelectItem value="XS">XS</SelectItem>
-                    <SelectItem value="S">S (Small)</SelectItem>
-                    <SelectItem value="M">M (Medium)</SelectItem>
-                    <SelectItem value="L">L (Large)</SelectItem>
-                    <SelectItem value="XL">XL</SelectItem>
-                    <SelectItem value="XXL">XXL</SelectItem>
-                    <SelectItem value="XXXL">XXXL</SelectItem>
-                    <SelectItem value="Free Size">Free Size</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+              {shouldShowSize() && (
+                <div className="space-y-2">
+                  <Label htmlFor="size">
+                    Size {!formData.category_id || getSizeOptions() !== null ? '*' : ''}
+                  </Label>
+                  <Select
+                    value={formData.size}
+                    onValueChange={(value) => setFormData((prev) => ({ ...prev, size: value }))}
+                  >
+                    <SelectTrigger id="size">
+                      <SelectValue placeholder="Select size" />
+                    </SelectTrigger>
+                    <SelectContent position="popper" sideOffset={5}>
+                      {getSizeOptions()?.map((sizeOption) => (
+                        <SelectItem key={sizeOption.value} value={sizeOption.value}>
+                          {sizeOption.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
             </div>
+
+            {/* Show helper text if size is hidden */}
+            {!shouldShowSize() && (
+              <p className="text-muted-foreground text-xs italic">
+                Size selection is not required for this category.
+              </p>
+            )}
           </div>
 
           <DialogFooter className="border-t pt-6">

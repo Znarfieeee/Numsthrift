@@ -27,6 +27,7 @@ export const Shop = () => {
   const [showProductDetail, setShowProductDetail] = useState(false)
   const [detailProduct, setDetailProduct] = useState(null)
   const [actionType, setActionType] = useState('') // 'add' or 'buy'
+  const [selectedMainImage, setSelectedMainImage] = useState('') // Track selected main image
   const { user } = useAuth()
   const navigate = useNavigate()
 
@@ -97,7 +98,101 @@ export const Shop = () => {
 
   const handleProductClick = (product) => {
     setDetailProduct(product)
+    setSelectedMainImage(product.image_url) // Set initial main image
     setShowProductDetail(true)
+  }
+
+  // Get size options based on product category
+  const getSizeOptions = (product) => {
+    const categoryName = product?.categories?.name?.toLowerCase() || ''
+
+    // Shoes - shoe sizes
+    if (categoryName.includes('shoe') || categoryName.includes('footwear')) {
+      return [
+        { value: '5', label: 'US 5' },
+        { value: '5.5', label: 'US 5.5' },
+        { value: '6', label: 'US 6' },
+        { value: '6.5', label: 'US 6.5' },
+        { value: '7', label: 'US 7' },
+        { value: '7.5', label: 'US 7.5' },
+        { value: '8', label: 'US 8' },
+        { value: '8.5', label: 'US 8.5' },
+        { value: '9', label: 'US 9' },
+        { value: '9.5', label: 'US 9.5' },
+        { value: '10', label: 'US 10' },
+        { value: '10.5', label: 'US 10.5' },
+        { value: '11', label: 'US 11' },
+        { value: '11.5', label: 'US 11.5' },
+        { value: '12', label: 'US 12' },
+        { value: '13', label: 'US 13' },
+      ]
+    }
+
+    // Tops - standard clothing sizes
+    if (
+      categoryName.includes('top') ||
+      categoryName.includes('shirt') ||
+      categoryName.includes('blouse') ||
+      categoryName.includes('jacket') ||
+      categoryName.includes('sweater') ||
+      categoryName.includes('hoodie')
+    ) {
+      return [
+        { value: 'XXS', label: 'XXS' },
+        { value: 'XS', label: 'XS' },
+        { value: 'S', label: 'S (Small)' },
+        { value: 'M', label: 'M (Medium)' },
+        { value: 'L', label: 'L (Large)' },
+        { value: 'XL', label: 'XL' },
+        { value: 'XXL', label: 'XXL' },
+        { value: 'XXXL', label: 'XXXL' },
+      ]
+    }
+
+    // Lowers/Bottoms - waist sizes
+    if (
+      categoryName.includes('bottom') ||
+      categoryName.includes('pant') ||
+      categoryName.includes('jean') ||
+      categoryName.includes('trouser') ||
+      categoryName.includes('short') ||
+      categoryName.includes('skirt')
+    ) {
+      return [
+        { value: '24', label: 'W24' },
+        { value: '25', label: 'W25' },
+        { value: '26', label: 'W26' },
+        { value: '27', label: 'W27' },
+        { value: '28', label: 'W28' },
+        { value: '29', label: 'W29' },
+        { value: '30', label: 'W30' },
+        { value: '31', label: 'W31' },
+        { value: '32', label: 'W32' },
+        { value: '33', label: 'W33' },
+        { value: '34', label: 'W34' },
+        { value: '36', label: 'W36' },
+        { value: '38', label: 'W38' },
+        { value: '40', label: 'W40' },
+      ]
+    }
+
+    // Bags and accessories - no size needed
+    if (categoryName.includes('bag') || categoryName.includes('accessories') || categoryName.includes('accessory')) {
+      return null // No size selection needed
+    }
+
+    // Default for other clothing items
+    return [
+      { value: 'XXS', label: 'XXS' },
+      { value: 'XS', label: 'XS' },
+      { value: 'S', label: 'S (Small)' },
+      { value: 'M', label: 'M (Medium)' },
+      { value: 'L', label: 'L (Large)' },
+      { value: 'XL', label: 'XL' },
+      { value: 'XXL', label: 'XXL' },
+      { value: 'XXXL', label: 'XXXL' },
+      { value: 'Free Size', label: 'Free Size' },
+    ]
   }
 
   const handleProductAction = (product, action) => {
@@ -110,8 +205,8 @@ export const Shop = () => {
     }
 
     // Check if product needs size selection
-    const categoryName = product.categories?.name?.toLowerCase() || ''
-    const needsSize = !categoryName.includes('bag') && !categoryName.includes('accessories')
+    const sizeOptions = getSizeOptions(product)
+    const needsSize = sizeOptions !== null
 
     setSelectedProduct(product)
     setActionType(action)
@@ -369,9 +464,9 @@ export const Shop = () => {
                 {/* Image Section */}
                 <div className="space-y-3">
                   <div className="overflow-hidden rounded-lg border-2" style={{ borderColor: 'var(--bg-card-pink)' }}>
-                    {detailProduct.image_url ? (
+                    {selectedMainImage ? (
                       <img
-                        src={detailProduct.image_url}
+                        src={selectedMainImage}
                         alt={detailProduct.title}
                         className="h-80 w-full object-cover"
                       />
@@ -382,16 +477,60 @@ export const Shop = () => {
                     )}
                   </div>
 
-                  {/* Additional Images */}
-                  {detailProduct.additional_images && detailProduct.additional_images.length > 0 && (
-                    <div className="grid grid-cols-4 gap-2">
-                      {detailProduct.additional_images.map((img, idx) => (
-                        <img
+                  {/* Image Thumbnails - Main + Additional */}
+                  {(detailProduct.image_url || (detailProduct.additional_images && detailProduct.additional_images.length > 0)) && (
+                    <div className="grid grid-cols-5 gap-2">
+                      {/* Main Image Thumbnail */}
+                      {detailProduct.image_url && (
+                        <button
+                          onClick={() => setSelectedMainImage(detailProduct.image_url)}
+                          className={`relative overflow-hidden rounded-lg border-2 transition-all duration-200 hover:opacity-80 ${
+                            selectedMainImage === detailProduct.image_url
+                              ? 'ring-2 ring-offset-2'
+                              : 'border-gray-200'
+                          }`}
+                          style={
+                            selectedMainImage === detailProduct.image_url
+                              ? { borderColor: 'var(--primary)', ringColor: 'var(--primary)' }
+                              : {}
+                          }
+                        >
+                          <img
+                            src={detailProduct.image_url}
+                            alt={`${detailProduct.title} main`}
+                            className="h-20 w-full object-cover"
+                          />
+                          {selectedMainImage === detailProduct.image_url && (
+                            <div className="absolute inset-0 border-2" style={{ borderColor: 'var(--primary)' }} />
+                          )}
+                        </button>
+                      )}
+
+                      {/* Additional Images Thumbnails */}
+                      {detailProduct.additional_images?.map((img, idx) => (
+                        <button
                           key={idx}
-                          src={img}
-                          alt={`${detailProduct.title} ${idx + 2}`}
-                          className="h-20 w-full rounded-lg border object-cover"
-                        />
+                          onClick={() => setSelectedMainImage(img)}
+                          className={`relative overflow-hidden rounded-lg border-2 transition-all duration-200 hover:opacity-80 ${
+                            selectedMainImage === img
+                              ? 'ring-2 ring-offset-2'
+                              : 'border-gray-200'
+                          }`}
+                          style={
+                            selectedMainImage === img
+                              ? { borderColor: 'var(--primary)', ringColor: 'var(--primary)' }
+                              : {}
+                          }
+                        >
+                          <img
+                            src={img}
+                            alt={`${detailProduct.title} ${idx + 2}`}
+                            className="h-20 w-full object-cover"
+                          />
+                          {selectedMainImage === img && (
+                            <div className="absolute inset-0 border-2" style={{ borderColor: 'var(--primary)' }} />
+                          )}
+                        </button>
                       ))}
                     </div>
                   )}
@@ -521,30 +660,20 @@ export const Shop = () => {
             </DialogDescription>
           </DialogHeader>
           <div className="grid grid-cols-3 gap-3 py-4">
-            {(() => {
-              const categoryName = selectedProduct?.categories?.name?.toLowerCase() || ''
-              let sizes = ['XS', 'S', 'M', 'L', 'XL', 'XXL'] // Default clothing sizes
-
-              // Shoe sizes
-              if (categoryName.includes('shoe')) {
-                sizes = ['5', '6', '7', '8', '9', '10', '11', '12']
-              }
-
-              return sizes.map((size) => (
-                <button
-                  key={size}
-                  onClick={() => setSelectedSize(size)}
-                  className={`rounded-lg px-4 py-3 font-medium transition-all duration-200 ${
-                    selectedSize === size
-                      ? 'text-white shadow-md'
-                      : 'border border-gray-300 text-gray-700 hover:border-gray-400'
-                  }`}
-                  style={selectedSize === size ? { backgroundColor: 'var(--primary)' } : {}}
-                >
-                  {size}
-                </button>
-              ))
-            })()}
+            {getSizeOptions(selectedProduct)?.map((sizeOption) => (
+              <button
+                key={sizeOption.value}
+                onClick={() => setSelectedSize(sizeOption.value)}
+                className={`rounded-lg px-4 py-3 font-medium transition-all duration-200 ${
+                  selectedSize === sizeOption.value
+                    ? 'text-white shadow-md'
+                    : 'border border-gray-300 text-gray-700 hover:border-gray-400'
+                }`}
+                style={selectedSize === sizeOption.value ? { backgroundColor: 'var(--primary)' } : {}}
+              >
+                {sizeOption.label}
+              </button>
+            ))}
           </div>
           <div className="mt-2 flex gap-3">
             <Button variant="outline" onClick={() => setShowSizeDialog(false)} className="flex-1">

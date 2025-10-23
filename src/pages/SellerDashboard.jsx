@@ -5,7 +5,7 @@ import { useAuth } from '../contexts/AuthContext'
 import { AddProductDialog } from '@/components/AddProductDialog'
 import { EditProductDialog } from '@/components/EditProductDialog'
 import { DeleteConfirmationDialog } from '@/components/DeleteConfirmationDialog'
-import { Plus, Edit, Trash2, Package, BarChart3, ImagePlus, Info } from 'lucide-react'
+import { Plus, Edit, Trash2, Package, BarChart3, ImagePlus, Info, DollarSign, ShoppingCart } from 'lucide-react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -23,6 +23,7 @@ import { toast } from 'sonner'
 export const SellerDashboard = () => {
   const [products, setProducts] = useState([])
   const [categories, setCategories] = useState([])
+  const [orders, setOrders] = useState([])
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState('products')
   const [editingProduct, setEditingProduct] = useState(null)
@@ -61,10 +62,26 @@ export const SellerDashboard = () => {
     setLoading(false)
   }, [user])
 
+  const fetchMyOrders = useCallback(async () => {
+    if (!user) return
+    const { data, error } = await supabase
+      .from('orders')
+      .select('*')
+      .eq('seller_id', user.id)
+      .order('created_at', { ascending: false })
+
+    if (error) {
+      console.error('Error fetching orders:', error)
+    } else {
+      setOrders(data || [])
+    }
+  }, [user])
+
   useEffect(() => {
     fetchCategories()
     fetchMyProducts()
-  }, [fetchCategories, fetchMyProducts])
+    fetchMyOrders()
+  }, [fetchCategories, fetchMyProducts, fetchMyOrders])
 
   const handleEditProduct = useCallback((product) => {
     setEditingProduct(product)
@@ -96,13 +113,26 @@ export const SellerDashboard = () => {
   }, [productToDelete, fetchMyProducts])
 
   const stats = useMemo(
-    () => ({
-      totalProducts: products.length,
-      availableProducts: products.filter((p) => p.status === 'available').length,
-      soldProducts: products.filter((p) => p.status === 'sold').length,
-      draftProducts: products.filter((p) => p.status === 'draft').length,
-    }),
-    [products]
+    () => {
+      // Calculate completed sales (delivered orders)
+      const deliveredOrders = orders.filter((o) => o.status === 'delivered')
+      const completedSales = deliveredOrders.length
+
+      // Calculate total revenue from delivered orders
+      const totalRevenue = deliveredOrders.reduce((sum, order) => {
+        return sum + parseFloat(order.total_amount || 0)
+      }, 0)
+
+      return {
+        totalProducts: products.length,
+        availableProducts: products.filter((p) => p.status === 'available').length,
+        completedSales: completedSales,
+        totalRevenue: totalRevenue,
+        draftProducts: products.filter((p) => p.status === 'draft').length,
+        pendingOrders: orders.filter((o) => o.status === 'pending').length,
+      }
+    },
+    [products, orders]
   )
 
   if (loading) {
@@ -185,34 +215,34 @@ export const SellerDashboard = () => {
 
           <Card className="border-2" style={{ borderColor: 'var(--bg-card-purple)' }}>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-gray-600">Available</CardTitle>
-              <BarChart3 className="text-secondary h-5 w-5" />
+              <CardTitle className="text-sm font-medium text-gray-600">Completed Sales</CardTitle>
+              <ShoppingCart className="text-secondary h-5 w-5" />
             </CardHeader>
             <CardContent>
-              <div className="text-secondary text-3xl font-bold">{stats.availableProducts}</div>
-              <p className="mt-1 text-xs text-gray-500">Ready for sale</p>
+              <div className="text-secondary text-3xl font-bold">{stats.completedSales}</div>
+              <p className="mt-1 text-xs text-gray-500">Delivered orders</p>
             </CardContent>
           </Card>
 
           <Card className="border-2" style={{ borderColor: 'var(--bg-card-pink)' }}>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-gray-600">Sold</CardTitle>
-              <BarChart3 className="text-accent h-5 w-5" />
+              <CardTitle className="text-sm font-medium text-gray-600">Total Revenue</CardTitle>
+              <DollarSign className="text-accent h-5 w-5" />
             </CardHeader>
             <CardContent>
-              <div className="text-accent text-3xl font-bold">{stats.soldProducts}</div>
-              <p className="mt-1 text-xs text-gray-500">Completed sales</p>
+              <div className="text-accent text-3xl font-bold">₱{stats.totalRevenue.toFixed(2)}</div>
+              <p className="mt-1 text-xs text-gray-500">From delivered orders</p>
             </CardContent>
           </Card>
 
           <Card className="border-2" style={{ borderColor: 'var(--bg-card-purple)' }}>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-gray-600">Drafts</CardTitle>
-              <Edit className="h-5 w-5 text-gray-500" />
+              <CardTitle className="text-sm font-medium text-gray-600">Pending Orders</CardTitle>
+              <BarChart3 className="h-5 w-5 text-gray-500" />
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold text-gray-700">{stats.draftProducts}</div>
-              <p className="mt-1 text-xs text-gray-500">Unpublished</p>
+              <div className="text-3xl font-bold text-gray-700">{stats.pendingOrders}</div>
+              <p className="mt-1 text-xs text-gray-500">Awaiting action</p>
             </CardContent>
           </Card>
         </div>
@@ -229,14 +259,14 @@ export const SellerDashboard = () => {
                 <Package className="mr-2 h-4 w-4" />
                 Products
               </Button>
-              <Button
+              {/* <Button
                 variant={activeTab === 'guide' ? 'default' : 'ghost'}
                 onClick={() => setActiveTab('guide')}
                 className={activeTab === 'guide' ? 'bg-primary text-primary-foreground' : ''}
               >
                 <Info className="mr-2 h-4 w-4" />
                 Image Upload Guide
-              </Button>
+              </Button> */}
             </nav>
           </div>
 
